@@ -12,7 +12,6 @@ import ReactFlow, {
   Connection,
   OnConnectStartParams,
   OnConnectEndParams,
-  NodeMouseHandler,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { nanoid } from "nanoid";
@@ -39,25 +38,38 @@ import {
   MoreVert as MoreVertIcon,
   GetApp as GetAppIcon,
   Publish as PublishIcon,
+  Restore as RestoreIcon,
 } from "@mui/icons-material";
 import { exportMindMapConfig, importMindMapConfig, createSampleConfig } from "../utils/mindmapConfig";
+import { saveMindMapToStorage, loadMindMapFromStorage, hasSavedMindMap } from "../utils/localStorage";
+import EditableNode, { EditableNodeData } from "./EditableNode";
 
 const initialNodes: Node[] = [
   {
     id: "1",
-    data: { label: "Yoffix", description: "", startDate: "", endDate: "" },
+    data: { 
+      label: "Yoffix", 
+      description: "", 
+      startDate: "", 
+      endDate: "",
+      onDataChange: undefined, // Will be set in component
+    },
     position: { x: 250, y: 5 },
-    type: "default",
+    type: "editableNode",
   },
 ];
 
 const initialEdges: Edge[] = [];
 
+// Custom node types
+const nodeTypes = {
+  editableNode: EditableNode,
+};
+
 const MindMap: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [connectingNodeId, setConnectingNodeId] = React.useState<string | null>(null);
-  const [selectedNode, setSelectedNode] = React.useState<Node | null>(null);
   
   // Import/Export related state
   const [menuAnchorEl, setMenuAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -70,6 +82,63 @@ const MindMap: React.FC = () => {
   const [exportTitle, setExportTitle] = React.useState('');
   const [exportDescription, setExportDescription] = React.useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Load saved mindmap on component mount
+  React.useEffect(() => {
+    const savedData = loadMindMapFromStorage();
+    if (savedData) {
+      // Add onDataChange callback to loaded nodes
+      const nodesWithCallback = savedData.nodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          onDataChange: handleNodeDataChange,
+        },
+      }));
+      setNodes(nodesWithCallback);
+      setEdges(savedData.edges);
+      setSnackbar({
+        open: true,
+        message: 'Previously saved mindmap loaded!',
+        severity: 'info',
+      });
+    } else {
+      // Set callback for initial nodes
+      setNodes(currentNodes => 
+        currentNodes.map(node => ({
+          ...node,
+          data: {
+            ...node.data,
+            onDataChange: handleNodeDataChange,
+          },
+        }))
+      );
+    }
+  }, []);
+
+  // Auto-save to localStorage whenever nodes or edges change
+  React.useEffect(() => {
+    if (nodes.length > 0) {
+      saveMindMapToStorage(nodes, edges);
+    }
+  }, [nodes, edges]);
+
+  // Handle node data changes (optimistic UI)
+  const handleNodeDataChange = React.useCallback((nodeId: string, newData: Partial<EditableNodeData>) => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === nodeId
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                ...newData,
+              },
+            }
+          : node
+      )
+    );
+  }, [setNodes]);
 
   const onConnectStart = (_: React.MouseEvent, params: OnConnectStartParams) => {
     setConnectingNodeId(params.nodeId);
@@ -90,9 +159,15 @@ const MindMap: React.FC = () => {
     const newNodeId = nanoid();
     const newNode: Node = {
       id: newNodeId,
-      data: { label: "New Node", description: "", startDate: "", endDate: "" },
+      data: { 
+        label: "New Node", 
+        description: "", 
+        startDate: "", 
+        endDate: "",
+        onDataChange: handleNodeDataChange,
+      },
       position,
-      type: "default",
+      type: "editableNode",
     };
 
     setNodes((nds) => [...nds, newNode]);
@@ -164,7 +239,15 @@ const MindMap: React.FC = () => {
     importMindMapConfig(
       file,
       (importedNodes, importedEdges, metadata) => {
-        setNodes(importedNodes);
+        // Add onDataChange callback to imported nodes
+        const nodesWithCallback = importedNodes.map(node => ({
+          ...node,
+          data: {
+            ...node.data,
+            onDataChange: handleNodeDataChange,
+          },
+        }));
+        setNodes(nodesWithCallback);
         setEdges(importedEdges);
         setSnackbar({
           open: true,
@@ -189,12 +272,58 @@ const MindMap: React.FC = () => {
 
   const handleLoadSample = () => {
     const sampleConfig = createSampleConfig();
-    setNodes(sampleConfig.nodes);
+    // Add onDataChange callback to sample nodes
+    const nodesWithCallback = sampleConfig.nodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        onDataChange: handleNodeDataChange,
+      },
+    }));
+    setNodes(nodesWithCallback);
     setEdges(sampleConfig.edges);
     setSnackbar({
       open: true,
       message: 'Sample mindmap loaded successfully!',
       severity: 'info',
+    });
+    handleMenuClose();
+  };
+
+  const handleLoadSavedMindMap = () => {
+    const savedData = loadMindMapFromStorage();
+    if (savedData) {
+      // Add onDataChange callback to loaded nodes
+      const nodesWithCallback = savedData.nodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          onDataChange: handleNodeDataChange,
+        },
+      }));
+      setNodes(nodesWithCallback);
+      setEdges(savedData.edges);
+      setSnackbar({
+        open: true,
+        message: 'Saved mindmap loaded successfully!',
+        severity: 'success',
+      });
+    } else {
+      setSnackbar({
+        open: true,
+        message: 'No saved mindmap found!',
+        severity: 'info',
+      });
+    }
+    handleMenuClose();
+  };
+
+  const handleSaveMindMap = () => {
+    saveMindMapToStorage(nodes, edges);
+    setSnackbar({
+      open: true,
+      message: 'MindMap saved successfully!',
+      severity: 'success',
     });
     handleMenuClose();
   };
@@ -213,7 +342,7 @@ const MindMap: React.FC = () => {
         onConnect={onConnect}
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
-        onNodeDoubleClick={onNodeDoubleClick}
+        nodeTypes={nodeTypes}
         fitView
       >
         <MiniMap />
@@ -279,50 +408,7 @@ const MindMap: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Node Edit Dialog */}
-      <Dialog open={!!selectedNode} onClose={closeEditor} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Node</DialogTitle>
-        <DialogContent className="flex flex-col gap-4">
-          <TextField
-            label="Title"
-            name="label"
-            value={selectedNode?.data.label || ""}
-            onChange={handleEditChange}
-            fullWidth
-          />
-          <TextField
-            label="Description"
-            name="description"
-            value={selectedNode?.data.description || ""}
-            onChange={handleEditChange}
-            multiline
-            rows={3}
-            fullWidth
-          />
-          <TextField
-            label="Start Date"
-            name="startDate"
-            type="date"
-            value={selectedNode?.data.startDate || ""}
-            onChange={handleEditChange}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            label="End Date"
-            name="endDate"
-            type="date"
-            value={selectedNode?.data.endDate || ""}
-            onChange={handleEditChange}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeEditor} color="primary">Close</Button>
-        </DialogActions>
-      </Dialog>
-
+      {/* Import/Export Menu */}
       <Menu
         anchorEl={menuAnchorEl}
         open={Boolean(menuAnchorEl)}
@@ -345,6 +431,18 @@ const MindMap: React.FC = () => {
             <PublishIcon />
           </ListItemIcon>
           <ListItemText>Load Sample MindMap</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleLoadSavedMindMap}>
+          <ListItemIcon>
+            <RestoreIcon />
+          </ListItemIcon>
+          <ListItemText>Load Saved MindMap</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleSaveMindMap}>
+          <ListItemIcon>
+            <PublishIcon />
+          </ListItemIcon>
+          <ListItemText>Save MindMap</ListItemText>
         </MenuItem>
       </Menu>
 

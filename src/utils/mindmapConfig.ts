@@ -119,7 +119,7 @@ export const createSampleConfig = (): MindMapConfiguration => {
           endDate: ''
         },
         position: { x: 250, y: 100 },
-        type: 'default',
+        type: 'editableNode',
       },
       {
         id: '2',
@@ -130,7 +130,7 @@ export const createSampleConfig = (): MindMapConfiguration => {
           endDate: ''
         },
         position: { x: 100, y: 200 },
-        type: 'default',
+        type: 'editableNode',
       },
       {
         id: '3',
@@ -141,7 +141,7 @@ export const createSampleConfig = (): MindMapConfiguration => {
           endDate: ''
         },
         position: { x: 400, y: 200 },
-        type: 'default',
+        type: 'editableNode',
       },
     ],
     edges: [
@@ -156,4 +156,3 @@ export const createSampleConfig = (): MindMapConfiguration => {
     },
   };
 };
-
