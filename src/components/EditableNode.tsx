@@ -6,15 +6,7 @@ import {
   TextField,
   Typography,
   Paper,
-  Chip,
-  IconButton,
-  Collapse,
 } from '@mui/material';
-import {
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  Edit as EditIcon,
-} from '@mui/icons-material';
 
 export interface EditableNodeData {
   label: string;
@@ -25,8 +17,8 @@ export interface EditableNodeData {
 }
 
 const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selected }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [localData, setLocalData] = useState(data);
   const labelInputRef = useRef<HTMLInputElement>(null);
   const descriptionInputRef = useRef<HTMLInputElement>(null);
@@ -36,36 +28,66 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
     setLocalData(data);
   }, [data]);
 
-  const handleLabelClick = useCallback(() => {
-    setIsEditing(true);
+  const handleTitleClick = useCallback(() => {
+    setIsEditingTitle(true);
     setTimeout(() => {
       labelInputRef.current?.focus();
       labelInputRef.current?.select();
     }, 0);
   }, []);
 
-  const handleLabelChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDescriptionClick = useCallback(() => {
+    setIsEditingDescription(true);
+    setTimeout(() => {
+      descriptionInputRef.current?.focus();
+    }, 0);
+  }, []);
+
+  const handleTitleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const newLabel = event.target.value;
     setLocalData(prev => ({ ...prev, label: newLabel }));
   }, []);
 
-  const handleLabelBlur = useCallback(() => {
-    setIsEditing(false);
+  const handleTitleBlur = useCallback(() => {
+    setIsEditingTitle(false);
     if (data.onDataChange) {
       data.onDataChange(id, { label: localData.label });
     }
   }, [id, localData.label, data]);
 
-  const handleLabelKeyDown = useCallback((event: React.KeyboardEvent) => {
+  const handleTitleKeyDown = useCallback((event: React.KeyboardEvent) => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      handleLabelBlur();
+      handleTitleBlur();
     }
     if (event.key === 'Escape') {
       setLocalData(prev => ({ ...prev, label: data.label }));
-      setIsEditing(false);
+      setIsEditingTitle(false);
     }
-  }, [data.label, handleLabelBlur]);
+  }, [data.label, handleTitleBlur]);
+
+  const handleDescriptionChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const newDescription = event.target.value;
+    setLocalData(prev => ({ ...prev, description: newDescription }));
+  }, []);
+
+  const handleDescriptionBlur = useCallback(() => {
+    setIsEditingDescription(false);
+    if (data.onDataChange) {
+      data.onDataChange(id, { description: localData.description });
+    }
+  }, [id, localData.description, data]);
+
+  const handleDescriptionKeyDown = useCallback((event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleDescriptionBlur();
+    }
+    if (event.key === 'Escape') {
+      setLocalData(prev => ({ ...prev, description: data.description }));
+      setIsEditingDescription(false);
+    }
+  }, [data.description, handleDescriptionBlur]);
 
   const handleFieldChange = useCallback((field: keyof EditableNodeData, value: string) => {
     setLocalData(prev => ({ ...prev, [field]: value }));
@@ -73,12 +95,6 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
       data.onDataChange(id, { [field]: value });
     }
   }, [id, data]);
-
-  const handleDescriptionBlur = useCallback(() => {
-    if (data.onDataChange) {
-      data.onDataChange(id, { description: localData.description });
-    }
-  }, [id, localData.description, data]);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -88,9 +104,6 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
       return dateString;
     }
   };
-
-  const hasDateInfo = localData.startDate || localData.endDate;
-  const hasDescription = localData.description.trim().length > 0;
 
   return (
     <Paper
@@ -121,14 +134,14 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
 
       <Box sx={{ p: 2 }}>
         {/* Title Section */}
-        <Box sx={{ mb: hasDescription || hasDateInfo ? 1 : 0 }}>
-          {isEditing ? (
+        <Box sx={{ mb: 1 }}>
+          {isEditingTitle ? (
             <TextField
               ref={labelInputRef}
               value={localData.label}
-              onChange={handleLabelChange}
-              onBlur={handleLabelBlur}
-              onKeyDown={handleLabelKeyDown}
+              onChange={handleTitleChange}
+              onBlur={handleTitleBlur}
+              onKeyDown={handleTitleKeyDown}
               variant="standard"
               fullWidth
               sx={{
@@ -148,7 +161,7 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
           ) : (
             <Typography
               variant="h6"
-              onClick={handleLabelClick}
+              onClick={handleTitleClick}
               sx={{
                 cursor: 'pointer',
                 fontWeight: 600,
@@ -167,96 +180,75 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
           )}
         </Box>
 
-        {/* Expandable Content */}
-        {(hasDescription || hasDateInfo) && (
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Box sx={{ display: 'flex', gap: 0.5 }}>
-              {hasDescription && (
-                <Chip
-                  label="Description"
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontSize: '0.7rem', height: 20 }}
-                />
-              )}
-              {hasDateInfo && (
-                <Chip
-                  label="Dates"
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontSize: '0.7rem', height: 20 }}
-                />
-              )}
-            </Box>
-            <IconButton
-              size="small"
-              onClick={() => setIsExpanded(!isExpanded)}
-              sx={{ padding: 0.5 }}
-            >
-              {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-            </IconButton>
-          </Box>
-        )}
-
-        <Collapse in={isExpanded}>
-          <Box sx={{ mt: 1, space: 1 }}>
-            {/* Description Field */}
+        {/* Description Section */}
+        <Box sx={{ mb: 1 }}>
+          {isEditingDescription ? (
             <TextField
-              label="Description"
+              ref={descriptionInputRef}
               value={localData.description}
-              onChange={(e) => handleFieldChange('description', e.target.value)}
+              onChange={handleDescriptionChange}
               onBlur={handleDescriptionBlur}
+              onKeyDown={handleDescriptionKeyDown}
+              variant="outlined"
+              fullWidth
               multiline
               rows={2}
-              fullWidth
-              variant="outlined"
               size="small"
-              sx={{ mb: 1 }}
+              placeholder="Add description..."
             />
+          ) : (
+            <Typography
+              variant="body2"
+              onClick={handleDescriptionClick}
+              sx={{
+                cursor: 'pointer',
+                color: localData.description ? 'text.primary' : 'text.secondary',
+                fontStyle: localData.description ? 'normal' : 'italic',
+                minHeight: '20px',
+                '&:hover': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                  borderRadius: 1,
+                  padding: '2px 4px',
+                  margin: '-2px -4px',
+                },
+              }}
+            >
+              {localData.description || 'Click to add description'}
+            </Typography>
+          )}
+        </Box>
 
-            {/* Date Fields */}
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <TextField
-                label="Start Date"
-                type="date"
-                value={localData.startDate}
-                onChange={(e) => handleFieldChange('startDate', e.target.value)}
-                fullWidth
-                variant="outlined"
-                size="small"
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                label="End Date"
-                type="date"
-                value={localData.endDate}
-                onChange={(e) => handleFieldChange('endDate', e.target.value)}
-                fullWidth
-                variant="outlined"
-                size="small"
-                InputLabelProps={{ shrink: true }}
-              />
-            </Box>
+        {/* Date Fields */}
+        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+          <TextField
+            label="Start Date"
+            type="date"
+            value={localData.startDate}
+            onChange={(e) => handleFieldChange('startDate', e.target.value)}
+            fullWidth
+            variant="outlined"
+            size="small"
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            label="End Date"
+            type="date"
+            value={localData.endDate}
+            onChange={(e) => handleFieldChange('endDate', e.target.value)}
+            fullWidth
+            variant="outlined"
+            size="small"
+            InputLabelProps={{ shrink: true }}
+          />
+        </Box>
 
-            {/* Date Display */}
-            {hasDateInfo && (
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="caption" color="text.secondary">
-                  {localData.startDate && `From: ${formatDate(localData.startDate)}`}
-                  {localData.startDate && localData.endDate && ' • '}
-                  {localData.endDate && `To: ${formatDate(localData.endDate)}`}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </Collapse>
-
-        {/* Quick Edit Indicator */}
-        {!isExpanded && (hasDescription || hasDateInfo) && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-            <EditIcon sx={{ fontSize: 12, color: 'text.secondary', mr: 0.5 }} />
+        {/* Date Display */}
+        {(localData.startDate || localData.endDate) && (
+          <Box sx={{ mt: 0.5 }}>
             <Typography variant="caption" color="text.secondary">
-              Click to expand and edit
+              {localData.startDate && `From: ${formatDate(localData.startDate)}`}
+              {localData.startDate && localData.endDate && ' • '}
+              {localData.endDate && `To: ${formatDate(localData.endDate)}`}
             </Typography>
           </Box>
         )}
