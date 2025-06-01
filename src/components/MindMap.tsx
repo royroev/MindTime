@@ -23,7 +23,24 @@ import {
   TextField,
   DialogActions,
   Button,
+  Box,
+  Typography,
+  Snackbar,
+  Alert,
+  Fab,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
+import {
+  Download as DownloadIcon,
+  Upload as UploadIcon,
+  MoreVert as MoreVertIcon,
+  GetApp as GetAppIcon,
+  Publish as PublishIcon,
+} from "@mui/icons-material";
+import { exportMindMapConfig, importMindMapConfig, createSampleConfig } from "../utils/mindmapConfig";
 
 const initialNodes: Node[] = [
   {
@@ -41,6 +58,18 @@ const MindMap: React.FC = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [connectingNodeId, setConnectingNodeId] = React.useState<string | null>(null);
   const [selectedNode, setSelectedNode] = React.useState<Node | null>(null);
+  
+  // Import/Export related state
+  const [menuAnchorEl, setMenuAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [snackbar, setSnackbar] = React.useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info';
+  }>({ open: false, message: '', severity: 'info' });
+  const [exportDialog, setExportDialog] = React.useState(false);
+  const [exportTitle, setExportTitle] = React.useState('');
+  const [exportDescription, setExportDescription] = React.useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const onConnectStart = (_: React.MouseEvent, params: OnConnectStartParams) => {
     setConnectingNodeId(params.nodeId);
@@ -89,6 +118,91 @@ const MindMap: React.FC = () => {
 
   const closeEditor = () => setSelectedNode(null);
 
+  // Import/Export handlers
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+
+  const handleExportClick = () => {
+    setExportDialog(true);
+    handleMenuClose();
+  };
+
+  const handleExportConfirm = () => {
+    try {
+      exportMindMapConfig(nodes, edges, exportTitle || 'MindMap', exportDescription);
+      setSnackbar({
+        open: true,
+        message: 'MindMap configuration exported successfully!',
+        severity: 'success',
+      });
+      setExportDialog(false);
+      setExportTitle('');
+      setExportDescription('');
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to export configuration',
+        severity: 'error',
+      });
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+    handleMenuClose();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    importMindMapConfig(
+      file,
+      (importedNodes, importedEdges, metadata) => {
+        setNodes(importedNodes);
+        setEdges(importedEdges);
+        setSnackbar({
+          open: true,
+          message: `MindMap "${metadata.title}" imported successfully!`,
+          severity: 'success',
+        });
+      },
+      (error) => {
+        setSnackbar({
+          open: true,
+          message: `Import failed: ${error}`,
+          severity: 'error',
+        });
+      }
+    );
+
+    // Reset file input
+    if (event.target) {
+      event.target.value = '';
+    }
+  };
+
+  const handleLoadSample = () => {
+    const sampleConfig = createSampleConfig();
+    setNodes(sampleConfig.nodes);
+    setEdges(sampleConfig.edges);
+    setSnackbar({
+      open: true,
+      message: 'Sample mindmap loaded successfully!',
+      severity: 'info',
+    });
+    handleMenuClose();
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
   return (
     <div style={{ width: "100%", height: "90vh" }}>
       <ReactFlow
@@ -107,6 +221,65 @@ const MindMap: React.FC = () => {
         <Background gap={12} size={1} />
       </ReactFlow>
 
+      {/* Floating Action Button for Import/Export */}
+      <Fab
+        color="primary"
+        aria-label="import-export"
+        onClick={handleMenuOpen}
+        sx={{
+          position: 'absolute',
+          bottom: 16,
+          right: 16,
+          zIndex: 1000,
+        }}
+      >
+        <MoreVertIcon />
+      </Fab>
+
+      {/* Hidden file input for import */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept=".json"
+        style={{ display: 'none' }}
+      />
+
+      {/* Export Dialog */}
+      <Dialog open={exportDialog} onClose={() => setExportDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Export MindMap Configuration</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Export your current mindmap as a JSON file that can be imported later.
+            </Typography>
+            <TextField
+              label="Title"
+              value={exportTitle}
+              onChange={(e) => setExportTitle(e.target.value)}
+              fullWidth
+              placeholder="Enter a title for your mindmap"
+            />
+            <TextField
+              label="Description"
+              value={exportDescription}
+              onChange={(e) => setExportDescription(e.target.value)}
+              multiline
+              rows={3}
+              fullWidth
+              placeholder="Optional description of your mindmap"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExportDialog(false)}>Cancel</Button>
+          <Button onClick={handleExportConfirm} variant="contained" startIcon={<DownloadIcon />}>
+            Export
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Node Edit Dialog */}
       <Dialog open={!!selectedNode} onClose={closeEditor} maxWidth="sm" fullWidth>
         <DialogTitle>Edit Node</DialogTitle>
         <DialogContent className="flex flex-col gap-4">
@@ -149,6 +322,46 @@ const MindMap: React.FC = () => {
           <Button onClick={closeEditor} color="primary">Close</Button>
         </DialogActions>
       </Dialog>
+
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={handleExportClick}>
+          <ListItemIcon>
+            <GetAppIcon />
+          </ListItemIcon>
+          <ListItemText>Export Configuration</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleImportClick}>
+          <ListItemIcon>
+            <UploadIcon />
+          </ListItemIcon>
+          <ListItemText>Import Configuration</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleLoadSample}>
+          <ListItemIcon>
+            <PublishIcon />
+          </ListItemIcon>
+          <ListItemText>Load Sample MindMap</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };
