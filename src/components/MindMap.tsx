@@ -11,7 +11,6 @@ import ReactFlow, {
   Edge,
   Connection,
   OnConnectStartParams,
-  OnConnectEndParams,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { nanoid } from "nanoid";
@@ -41,17 +40,20 @@ import {
   Restore as RestoreIcon,
 } from "@mui/icons-material";
 import { exportMindMapConfig, importMindMapConfig, createSampleConfig } from "../utils/mindmapConfig";
-import { saveMindMapToStorage, loadMindMapFromStorage, hasSavedMindMap } from "../utils/localStorage";
+import { saveMindMapToStorage, loadMindMapFromStorage } from "../utils/localStorage";
 import EditableNode, { EditableNodeData } from "./EditableNode";
 
 const initialNodes: Node[] = [
   {
     id: "1",
-    data: { 
-      label: "Yoffix", 
-      description: "", 
-      startDate: "", 
+    data: {
+      label: "Yoffix",
+      description: "",
+      startDate: "",
       endDate: "",
+      backgroundColor: "#ffffff",
+      completed: false,
+      icon: "",
       onDataChange: undefined, // Will be set in component
     },
     position: { x: 250, y: 5 },
@@ -70,7 +72,7 @@ const MindMap: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [connectingNodeId, setConnectingNodeId] = React.useState<string | null>(null);
-  
+
   // Import/Export related state
   const [menuAnchorEl, setMenuAnchorEl] = React.useState<null | HTMLElement>(null);
   const [snackbar, setSnackbar] = React.useState<{
@@ -140,11 +142,11 @@ const MindMap: React.FC = () => {
     );
   }, [setNodes]);
 
-  const onConnectStart = (_: React.MouseEvent, params: OnConnectStartParams) => {
+  const onConnectStart = (_event: React.MouseEvent | React.TouchEvent, params: OnConnectStartParams) => {
     setConnectingNodeId(params.nodeId);
   };
 
-  const onConnectEnd = (event: MouseEvent) => {
+  const onConnectEnd = (event: MouseEvent | TouchEvent) => {
     const reactFlowBounds = document
       .querySelector(".react-flow__viewport")
       ?.getBoundingClientRect();
@@ -152,18 +154,21 @@ const MindMap: React.FC = () => {
     if (!reactFlowBounds || !connectingNodeId) return;
 
     const position = {
-      x: event.clientX - reactFlowBounds.left,
-      y: event.clientY - reactFlowBounds.top,
+      x: (event as MouseEvent).clientX - reactFlowBounds.left,
+      y: (event as MouseEvent).clientY - reactFlowBounds.top,
     };
 
     const newNodeId = nanoid();
     const newNode: Node = {
       id: newNodeId,
-      data: { 
-        label: "New Node", 
-        description: "", 
-        startDate: "", 
+      data: {
+        label: "New Node",
+        description: "",
+        startDate: "",
         endDate: "",
+        backgroundColor: "#ffffff",
+        completed: false,
+        icon: "",
         onDataChange: handleNodeDataChange,
       },
       position,
@@ -176,22 +181,6 @@ const MindMap: React.FC = () => {
   };
 
   const onConnect = (params: Connection) => setEdges((eds) => addEdge(params, eds));
-
-  const onNodeDoubleClick: NodeMouseHandler = (_, node) => {
-    setSelectedNode(node);
-  };
-
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (!selectedNode) return;
-    const { name, value } = e.target;
-    setNodes((nds) =>
-      nds.map((n) =>
-        n.id === selectedNode.id ? { ...n, data: { ...n.data, [name]: value } } : n
-      )
-    );
-  };
-
-  const closeEditor = () => setSelectedNode(null);
 
   // Import/Export handlers
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {

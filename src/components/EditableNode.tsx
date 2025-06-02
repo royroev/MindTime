@@ -6,6 +6,7 @@ import {
   TextField,
   Typography,
   Paper,
+  Checkbox,
 } from '@mui/material';
 
 export interface EditableNodeData {
@@ -13,15 +14,20 @@ export interface EditableNodeData {
   description: string;
   startDate: string;
   endDate: string;
+  backgroundColor: string;
+  completed: boolean;
+  icon: string;
   onDataChange?: (id: string, newData: Partial<EditableNodeData>) => void;
 }
 
 const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selected }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isEditingIcon, setIsEditingIcon] = useState(false);
   const [localData, setLocalData] = useState(data);
   const labelInputRef = useRef<HTMLInputElement>(null);
   const descriptionInputRef = useRef<HTMLInputElement>(null);
+  const iconInputRef = useRef<HTMLInputElement>(null);
 
   // Update local data when props change
   useEffect(() => {
@@ -40,6 +46,13 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
     setIsEditingDescription(true);
     setTimeout(() => {
       descriptionInputRef.current?.focus();
+    }, 0);
+  }, []);
+
+  const handleIconClick = useCallback(() => {
+    setIsEditingIcon(true);
+    setTimeout(() => {
+      iconInputRef.current?.focus();
     }, 0);
   }, []);
 
@@ -89,6 +102,29 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
     }
   }, [data.description, handleDescriptionBlur]);
 
+  const handleIconChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const newIcon = event.target.value;
+    setLocalData(prev => ({ ...prev, icon: newIcon }));
+  }, []);
+
+  const handleIconBlur = useCallback(() => {
+    setIsEditingIcon(false);
+    if (data.onDataChange) {
+      data.onDataChange(id, { icon: localData.icon });
+    }
+  }, [id, localData.icon, data]);
+
+  const handleIconKeyDown = useCallback((event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleIconBlur();
+    }
+    if (event.key === 'Escape') {
+      setLocalData(prev => ({ ...prev, icon: data.icon }));
+      setIsEditingIcon(false);
+    }
+  }, [data.icon, handleIconBlur]);
+
   const handleFieldChange = useCallback((field: keyof EditableNodeData, value: string) => {
     setLocalData(prev => ({ ...prev, [field]: value }));
     if (data.onDataChange) {
@@ -115,6 +151,8 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
         borderRadius: 2,
         overflow: 'hidden',
         transition: 'all 0.2s ease-in-out',
+        backgroundColor: localData.backgroundColor || '#ffffff',
+        opacity: localData.completed ? 0.7 : 1,
         '&:hover': {
           elevation: 4,
           transform: 'translateY(-1px)',
@@ -133,6 +171,37 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
       />
 
       <Box sx={{ p: 2 }}>
+        {/* Completion Status and Icon Row */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <Checkbox
+            checked={localData.completed || false}
+            onChange={(e) => {
+              const newCompleted = e.target.checked;
+              setLocalData(prev => ({ ...prev, completed: newCompleted }));
+              if (data.onDataChange) {
+                data.onDataChange(id, { completed: newCompleted });
+              }
+            }}
+            size="small"
+            sx={{ padding: 0 }}
+          />
+          
+          {/* Icon Display */}
+          {localData.icon && (
+            <Box
+              sx={{
+                fontSize: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '20px',
+              }}
+            >
+              {localData.icon}
+            </Box>
+          )}
+        </Box>
+
         {/* Title Section */}
         <Box sx={{ mb: 1 }}>
           {isEditingTitle ? (
@@ -167,6 +236,7 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
                 fontWeight: 600,
                 fontSize: '1.1rem',
                 lineHeight: 1.2,
+                textDecoration: localData.completed ? 'line-through' : 'none',
                 '&:hover': {
                   backgroundColor: 'rgba(25, 118, 210, 0.04)',
                   borderRadius: 1,
@@ -218,6 +288,42 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
           )}
         </Box>
 
+        {/* Icon Section */}
+        <Box sx={{ mb: 1 }}>
+          {isEditingIcon ? (
+            <TextField
+              ref={iconInputRef}
+              value={localData.icon}
+              onChange={handleIconChange}
+              onBlur={handleIconBlur}
+              onKeyDown={handleIconKeyDown}
+              variant="outlined"
+              fullWidth
+              size="small"
+              placeholder="Add icon..."
+            />
+          ) : (
+            <Typography
+              variant="body2"
+              onClick={handleIconClick}
+              sx={{
+                cursor: 'pointer',
+                color: localData.icon ? 'text.primary' : 'text.secondary',
+                fontStyle: localData.icon ? 'normal' : 'italic',
+                minHeight: '20px',
+                '&:hover': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                  borderRadius: 1,
+                  padding: '2px 4px',
+                  margin: '-2px -4px',
+                },
+              }}
+            >
+              {localData.icon || 'Click to add icon'}
+            </Typography>
+          )}
+        </Box>
+
         {/* Date Fields */}
         <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
           <TextField
@@ -239,6 +345,20 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
             variant="outlined"
             size="small"
             InputLabelProps={{ shrink: true }}
+          />
+        </Box>
+
+        {/* Background Color Picker */}
+        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+          <TextField
+            label="Background Color"
+            type="color"
+            value={localData.backgroundColor || '#ffffff'}
+            onChange={(e) => handleFieldChange('backgroundColor', e.target.value)}
+            variant="outlined"
+            size="small"
+            InputLabelProps={{ shrink: true }}
+            sx={{ width: '50%' }}
           />
         </Box>
 
@@ -269,4 +389,3 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
 };
 
 export default EditableNode;
-
