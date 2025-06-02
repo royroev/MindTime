@@ -11,7 +11,6 @@ import ReactFlow, {
   Edge,
   Connection,
   OnConnectStartParams,
-  OnConnectEndParams,
   NodeMouseHandler,
 } from "reactflow";
 import "reactflow/dist/style.css";
@@ -23,14 +22,32 @@ import {
   TextField,
   DialogActions,
   Button,
+  FormControlLabel,
+  Checkbox,
+  Box,
+  Typography,
 } from "@mui/material";
+import CustomNode, { CustomNodeData } from "./CustomNode";
 
-const initialNodes: Node[] = [
+// Register custom node types
+const nodeTypes = {
+  customNode: CustomNode,
+};
+
+const initialNodes: Node<CustomNodeData>[] = [
   {
     id: "1",
-    data: { label: "Yoffix", description: "", startDate: "", endDate: "" },
+    data: { 
+      label: "Yoffix", 
+      description: "", 
+      startDate: "", 
+      endDate: "",
+      backgroundColor: "#ffffff",
+      completed: false,
+      icon: ""
+    },
     position: { x: 250, y: 5 },
-    type: "default",
+    type: "customNode",
   },
 ];
 
@@ -40,13 +57,13 @@ const MindMap: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [connectingNodeId, setConnectingNodeId] = React.useState<string | null>(null);
-  const [selectedNode, setSelectedNode] = React.useState<Node | null>(null);
+  const [selectedNode, setSelectedNode] = React.useState<Node<CustomNodeData> | null>(null);
 
-  const onConnectStart = (_: React.MouseEvent, params: OnConnectStartParams) => {
+  const onConnectStart = (_event: React.MouseEvent | React.TouchEvent, params: OnConnectStartParams) => {
     setConnectingNodeId(params.nodeId);
   };
 
-  const onConnectEnd = (event: MouseEvent) => {
+  const onConnectEnd = (event: MouseEvent | TouchEvent) => {
     const reactFlowBounds = document
       .querySelector(".react-flow__viewport")
       ?.getBoundingClientRect();
@@ -54,16 +71,24 @@ const MindMap: React.FC = () => {
     if (!reactFlowBounds || !connectingNodeId) return;
 
     const position = {
-      x: event.clientX - reactFlowBounds.left,
-      y: event.clientY - reactFlowBounds.top,
+      x: (event as MouseEvent).clientX - reactFlowBounds.left,
+      y: (event as MouseEvent).clientY - reactFlowBounds.top,
     };
 
     const newNodeId = nanoid();
-    const newNode: Node = {
+    const newNode: Node<CustomNodeData> = {
       id: newNodeId,
-      data: { label: "New Node", description: "", startDate: "", endDate: "" },
+      data: { 
+        label: "New Node", 
+        description: "", 
+        startDate: "", 
+        endDate: "",
+        backgroundColor: "#ffffff",
+        completed: false,
+        icon: ""
+      },
       position,
-      type: "default",
+      type: "customNode",
     };
 
     setNodes((nds) => [...nds, newNode]);
@@ -74,7 +99,7 @@ const MindMap: React.FC = () => {
   const onConnect = (params: Connection) => setEdges((eds) => addEdge(params, eds));
 
   const onNodeDoubleClick: NodeMouseHandler = (_, node) => {
-    setSelectedNode(node);
+    setSelectedNode(node as Node<CustomNodeData>);
   };
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -100,6 +125,7 @@ const MindMap: React.FC = () => {
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
         onNodeDoubleClick={onNodeDoubleClick}
+        nodeTypes={nodeTypes}
         fitView
       >
         <MiniMap />
@@ -143,6 +169,52 @@ const MindMap: React.FC = () => {
             onChange={handleEditChange}
             fullWidth
             InputLabelProps={{ shrink: true }}
+          />
+          
+          {/* Background Color Selection */}
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>Background Color</Typography>
+            <TextField
+              label="Background Color"
+              name="backgroundColor"
+              type="color"
+              value={selectedNode?.data.backgroundColor || "#ffffff"}
+              onChange={handleEditChange}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
+          
+          {/* Completion Status */}
+          <Box>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={selectedNode?.data.completed || false}
+                  onChange={(e) => {
+                    const { checked } = e.target;
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === selectedNode?.id
+                          ? { ...n, data: { ...n.data, completed: checked } }
+                          : n
+                      )
+                    );
+                  }}
+                />
+              }
+              label="Completed"
+            />
+          </Box>
+          
+          {/* Icon */}
+          <TextField
+            label="Icon (emoji or text)"
+            name="icon"
+            value={selectedNode?.data.icon || ""}
+            onChange={handleEditChange}
+            fullWidth
+            placeholder="e.g., 🎯, ⭐, 📝"
           />
         </DialogContent>
         <DialogActions>
