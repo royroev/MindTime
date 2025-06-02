@@ -7,7 +7,22 @@ import {
   Typography,
   Paper,
   Checkbox,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
+
+// Predefined color palette
+const COLOR_PALETTE = [
+  '#ffffff', // White (default)
+  '#e3f2fd', // Light Blue
+  '#f3e5f5', // Light Purple
+  '#e8f5e8', // Light Green
+  '#fff3e0', // Light Orange
+  '#ffebee', // Light Pink
+  '#f1f8e9', // Light Lime
+  '#fce4ec', // Light Rose
+  '#e0f2f1', // Light Teal
+];
 
 export interface EditableNodeData {
   label: string;
@@ -349,17 +364,34 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
         </Box>
 
         {/* Background Color Picker */}
-        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-          <TextField
-            label="Background Color"
-            type="color"
-            value={localData.backgroundColor || '#ffffff'}
-            onChange={(e) => handleFieldChange('backgroundColor', e.target.value)}
-            variant="outlined"
-            size="small"
-            InputLabelProps={{ shrink: true }}
-            sx={{ width: '50%' }}
-          />
+        <Box sx={{ mb: 1 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+            Background Color
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+            {COLOR_PALETTE.map((color) => (
+              <Tooltip key={color} title={`Select ${color === '#ffffff' ? 'white' : 'color'}`}>
+                <IconButton
+                  size="small"
+                  onClick={() => handleFieldChange('backgroundColor', color)}
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    backgroundColor: color,
+                    border: localData.backgroundColor === color 
+                      ? '2px solid #1976d2' 
+                      : '1px solid #ddd',
+                    borderRadius: 1,
+                    '&:hover': {
+                      transform: 'scale(1.1)',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    },
+                    transition: 'all 0.2s ease',
+                  }}
+                />
+              </Tooltip>
+            ))}
+          </Box>
         </Box>
 
         {/* Date Display */}
