@@ -95,6 +95,7 @@ const MindMap: React.FC = () => {
         data: {
           ...node.data,
           onDataChange: handleNodeDataChange,
+          onColorChangeWithChildren: handleColorChangeWithChildren,
         },
       }));
       setNodes(nodesWithCallback);
@@ -112,6 +113,7 @@ const MindMap: React.FC = () => {
           data: {
             ...node.data,
             onDataChange: handleNodeDataChange,
+            onColorChangeWithChildren: handleColorChangeWithChildren,
           },
         }))
       );
@@ -128,19 +130,51 @@ const MindMap: React.FC = () => {
   // Handle node data changes (optimistic UI)
   const handleNodeDataChange = React.useCallback((nodeId: string, newData: Partial<EditableNodeData>) => {
     setNodes((nds) =>
-      nds.map((node) =>
-        node.id === nodeId
-          ? {
-              ...node,
-              data: {
-                ...node.data,
-                ...newData,
-              },
-            }
-          : node
-      )
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: { ...node.data, ...newData },
+          };
+        }
+        return node;
+      })
     );
   }, [setNodes]);
+
+  const handleColorChangeWithChildren = React.useCallback((nodeId: string, color: string) => {
+    setNodes((nds) => {
+      // First, find all children of the current node
+      const findChildren = (parentId: string): string[] => {
+        const children: string[] = [];
+        const directChildren = edges
+          .filter(edge => edge.source === parentId)
+          .map(edge => edge.target);
+        
+        children.push(...directChildren);
+        
+        // Recursively find grandchildren
+        directChildren.forEach(childId => {
+          children.push(...findChildren(childId));
+        });
+        
+        return children;
+      };
+
+      const childrenIds = findChildren(nodeId);
+      const allAffectedIds = [nodeId, ...childrenIds];
+
+      return nds.map((node) => {
+        if (allAffectedIds.includes(node.id)) {
+          return {
+            ...node,
+            data: { ...node.data, backgroundColor: color },
+          };
+        }
+        return node;
+      });
+    });
+  }, [setNodes, edges]);
 
   const onConnectStart = (_event: React.MouseEvent | React.TouchEvent, params: OnConnectStartParams) => {
     setConnectingNodeId(params.nodeId);
@@ -170,6 +204,7 @@ const MindMap: React.FC = () => {
         completed: false,
         icon: "",
         onDataChange: handleNodeDataChange,
+        onColorChangeWithChildren: handleColorChangeWithChildren,
       },
       position,
       type: "editableNode",
@@ -234,6 +269,7 @@ const MindMap: React.FC = () => {
           data: {
             ...node.data,
             onDataChange: handleNodeDataChange,
+            onColorChangeWithChildren: handleColorChangeWithChildren,
           },
         }));
         setNodes(nodesWithCallback);
@@ -267,6 +303,7 @@ const MindMap: React.FC = () => {
       data: {
         ...node.data,
         onDataChange: handleNodeDataChange,
+        onColorChangeWithChildren: handleColorChangeWithChildren,
       },
     }));
     setNodes(nodesWithCallback);
@@ -288,6 +325,7 @@ const MindMap: React.FC = () => {
         data: {
           ...node.data,
           onDataChange: handleNodeDataChange,
+          onColorChangeWithChildren: handleColorChangeWithChildren,
         },
       }));
       setNodes(nodesWithCallback);

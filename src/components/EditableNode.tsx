@@ -7,9 +7,12 @@ import {
   Typography,
   Paper,
   Checkbox,
-  IconButton,
   Tooltip,
+  Button,
+  Menu,
+  MenuItem,
 } from '@mui/material';
+import { KeyboardArrowDown } from '@mui/icons-material';
 
 // Predefined color palette
 const COLOR_PALETTE = [
@@ -33,12 +36,14 @@ export interface EditableNodeData {
   completed: boolean;
   icon: string;
   onDataChange?: (id: string, newData: Partial<EditableNodeData>) => void;
+  onColorChangeWithChildren?: (id: string, color: string) => void;
 }
 
 const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selected }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingIcon, setIsEditingIcon] = useState(false);
+  const [colorMenuAnchor, setColorMenuAnchor] = useState<null | HTMLElement>(null);
   const [localData, setLocalData] = useState(data);
   const labelInputRef = useRef<HTMLInputElement>(null);
   const descriptionInputRef = useRef<HTMLInputElement>(null);
@@ -146,6 +151,27 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
       data.onDataChange(id, { [field]: value });
     }
   }, [id, data]);
+
+  const handleColorMenuOpen = useCallback((event: React.MouseEvent<HTMLElement>) => {
+    setColorMenuAnchor(event.currentTarget);
+  }, []);
+
+  const handleColorMenuClose = useCallback(() => {
+    setColorMenuAnchor(null);
+  }, []);
+
+  const handleColorSelect = useCallback((color: string) => {
+    setLocalData(prev => ({ ...prev, backgroundColor: color }));
+    
+    // Use the new color change handler if available (for parent-child updates)
+    if (data.onColorChangeWithChildren) {
+      data.onColorChangeWithChildren(id, color);
+    } else if (data.onDataChange) {
+      data.onDataChange(id, { backgroundColor: color });
+    }
+    
+    handleColorMenuClose();
+  }, [id, data, handleColorMenuClose]);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -368,30 +394,73 @@ const EditableNode: React.FC<NodeProps<EditableNodeData>> = ({ id, data, selecte
           <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
             Background Color
           </Typography>
-          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-            {COLOR_PALETTE.map((color) => (
-              <Tooltip key={color} title={`Select ${color === '#ffffff' ? 'white' : 'color'}`}>
-                <IconButton
-                  size="small"
-                  onClick={() => handleFieldChange('backgroundColor', color)}
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleColorMenuOpen}
+            endIcon={<KeyboardArrowDown />}
+            startIcon={
+              <Box
+                sx={{
+                  width: 16,
+                  height: 16,
+                  backgroundColor: localData.backgroundColor || '#ffffff',
+                  border: '1px solid #ddd',
+                  borderRadius: 0.5,
+                }}
+              />
+            }
+            sx={{
+              textTransform: 'none',
+              justifyContent: 'flex-start',
+              minWidth: 120,
+            }}
+          >
+            Color
+          </Button>
+          
+          <Menu
+            anchorEl={colorMenuAnchor}
+            open={Boolean(colorMenuAnchor)}
+            onClose={handleColorMenuClose}
+            PaperProps={{
+              sx: { p: 1 }
+            }}
+          >
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0.5 }}>
+              {COLOR_PALETTE.map((color) => (
+                <MenuItem
+                  key={color}
+                  onClick={() => handleColorSelect(color)}
                   sx={{
-                    width: 24,
-                    height: 24,
-                    backgroundColor: color,
-                    border: localData.backgroundColor === color 
-                      ? '2px solid #1976d2' 
-                      : '1px solid #ddd',
+                    p: 0.5,
+                    minHeight: 'auto',
                     borderRadius: 1,
-                    '&:hover': {
-                      transform: 'scale(1.1)',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                    },
-                    transition: 'all 0.2s ease',
                   }}
-                />
-              </Tooltip>
-            ))}
-          </Box>
+                >
+                  <Tooltip title={`Select ${color === '#ffffff' ? 'white' : 'color'}`}>
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        backgroundColor: color,
+                        border: localData.backgroundColor === color 
+                          ? '2px solid #1976d2' 
+                          : '1px solid #ddd',
+                        borderRadius: 1,
+                        cursor: 'pointer',
+                        '&:hover': {
+                          transform: 'scale(1.05)',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                        },
+                        transition: 'all 0.2s ease',
+                      }}
+                    />
+                  </Tooltip>
+                </MenuItem>
+              ))}
+            </Box>
+          </Menu>
         </Box>
 
         {/* Date Display */}
