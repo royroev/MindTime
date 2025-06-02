@@ -43,7 +43,7 @@ import { exportMindMapConfig, importMindMapConfig, createSampleConfig } from "..
 import { saveMindMapToStorage, loadMindMapFromStorage } from "../utils/localStorage";
 import EditableNode, { EditableNodeData } from "./EditableNode";
 
-const initialNodes: Node[] = [
+const initialNodes: Node<EditableNodeData>[] = [
   {
     id: "1",
     data: {
@@ -96,6 +96,7 @@ const MindMap: React.FC = () => {
           ...node.data,
           onDataChange: handleNodeDataChange,
           onColorChangeWithChildren: handleColorChangeWithChildren,
+          onDelete: handleNodeDelete,
         },
       }));
       setNodes(nodesWithCallback);
@@ -114,6 +115,7 @@ const MindMap: React.FC = () => {
             ...node.data,
             onDataChange: handleNodeDataChange,
             onColorChangeWithChildren: handleColorChangeWithChildren,
+            onDelete: handleNodeDelete,
           },
         }))
       );
@@ -175,6 +177,14 @@ const MindMap: React.FC = () => {
       });
     });
   }, [setNodes, edges]);
+
+  const handleNodeDelete = React.useCallback((nodeId: string) => {
+    // Remove the node
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    
+    // Remove all edges connected to this node
+    setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+  }, [setNodes, setEdges]);
 
   const onConnectStart = (_event: React.MouseEvent | React.TouchEvent, params: OnConnectStartParams) => {
     setConnectingNodeId(params.nodeId);
@@ -270,6 +280,7 @@ const MindMap: React.FC = () => {
             ...node.data,
             onDataChange: handleNodeDataChange,
             onColorChangeWithChildren: handleColorChangeWithChildren,
+            onDelete: handleNodeDelete,
           },
         }));
         setNodes(nodesWithCallback);
@@ -304,6 +315,7 @@ const MindMap: React.FC = () => {
         ...node.data,
         onDataChange: handleNodeDataChange,
         onColorChangeWithChildren: handleColorChangeWithChildren,
+        onDelete: handleNodeDelete,
       },
     }));
     setNodes(nodesWithCallback);
@@ -326,6 +338,7 @@ const MindMap: React.FC = () => {
           ...node.data,
           onDataChange: handleNodeDataChange,
           onColorChangeWithChildren: handleColorChangeWithChildren,
+          onDelete: handleNodeDelete,
         },
       }));
       setNodes(nodesWithCallback);
