@@ -112,33 +112,42 @@ export const createSampleConfig = (): MindMapConfiguration => {
     nodes: [
       {
         id: '1',
-        data: { 
-          label: 'Main Topic', 
+        data: {
+          label: 'Main Topic',
           description: 'This is the central topic of your mindmap',
           startDate: '',
-          endDate: ''
+          endDate: '',
+          backgroundColor: '#ffffff',
+          completed: false,
+          icon: '🎯'
         },
         position: { x: 250, y: 100 },
         type: 'editableNode',
       },
       {
         id: '2',
-        data: { 
-          label: 'Subtopic 1', 
+        data: {
+          label: 'Subtopic 1',
           description: 'First branch of ideas',
           startDate: '',
-          endDate: ''
+          endDate: '',
+          backgroundColor: '#e3f2fd',
+          completed: false,
+          icon: '⭐'
         },
         position: { x: 100, y: 200 },
         type: 'editableNode',
       },
       {
         id: '3',
-        data: { 
-          label: 'Subtopic 2', 
+        data: {
+          label: 'Subtopic 2',
           description: 'Second branch of ideas',
           startDate: '',
-          endDate: ''
+          endDate: '',
+          backgroundColor: '#f3e5f5',
+          completed: true,
+          icon: '📝'
         },
         position: { x: 400, y: 200 },
         type: 'editableNode',

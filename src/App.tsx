@@ -18,16 +18,17 @@ export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
 const App: React.FC = () => {
-  const [view, setView] = React.useState<'map' | 'timeline'>('map');
+  // Removed unused view state for now
+  // const [view, setView] = React.useState<'map' | 'timeline'>('map');
 
   return (
     <Provider store={store}>
       <div className="w-screen h-screen p-4">
         <div className="mb-4">
-          <button onClick={() => setView('map')} className="mr-2">
+          <button className="mr-2">
             🧠 MindMap
           </button>
-          <button onClick={() => setView('timeline')}>📅 Timeline</button>
+          <button>📅 Timeline</button>
         </div>
         <MindMap />
       </div>

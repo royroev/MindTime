@@ -11,7 +11,6 @@ import ReactFlow, {
   Edge,
   Connection,
   OnConnectStartParams,
-  OnConnectEndParams,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { nanoid } from "nanoid";
@@ -41,17 +40,20 @@ import {
   Restore as RestoreIcon,
 } from "@mui/icons-material";
 import { exportMindMapConfig, importMindMapConfig, createSampleConfig } from "../utils/mindmapConfig";
-import { saveMindMapToStorage, loadMindMapFromStorage, hasSavedMindMap } from "../utils/localStorage";
+import { saveMindMapToStorage, loadMindMapFromStorage } from "../utils/localStorage";
 import EditableNode, { EditableNodeData } from "./EditableNode";
 
-const initialNodes: Node[] = [
+const initialNodes: Node<EditableNodeData>[] = [
   {
     id: "1",
-    data: { 
-      label: "Yoffix", 
-      description: "", 
-      startDate: "", 
+    data: {
+      label: "Yoffix",
+      description: "",
+      startDate: "",
       endDate: "",
+      backgroundColor: "#ffffff",
+      completed: false,
+      icon: "",
       onDataChange: undefined, // Will be set in component
     },
     position: { x: 250, y: 5 },
@@ -70,7 +72,7 @@ const MindMap: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [connectingNodeId, setConnectingNodeId] = React.useState<string | null>(null);
-  
+
   // Import/Export related state
   const [menuAnchorEl, setMenuAnchorEl] = React.useState<null | HTMLElement>(null);
   const [snackbar, setSnackbar] = React.useState<{
@@ -93,6 +95,8 @@ const MindMap: React.FC = () => {
         data: {
           ...node.data,
           onDataChange: handleNodeDataChange,
+          onColorChangeWithChildren: handleColorChangeWithChildren,
+          onDelete: handleNodeDelete,
         },
       }));
       setNodes(nodesWithCallback);
@@ -110,6 +114,8 @@ const MindMap: React.FC = () => {
           data: {
             ...node.data,
             onDataChange: handleNodeDataChange,
+            onColorChangeWithChildren: handleColorChangeWithChildren,
+            onDelete: handleNodeDelete,
           },
         }))
       );
@@ -126,25 +132,65 @@ const MindMap: React.FC = () => {
   // Handle node data changes (optimistic UI)
   const handleNodeDataChange = React.useCallback((nodeId: string, newData: Partial<EditableNodeData>) => {
     setNodes((nds) =>
-      nds.map((node) =>
-        node.id === nodeId
-          ? {
-              ...node,
-              data: {
-                ...node.data,
-                ...newData,
-              },
-            }
-          : node
-      )
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: { ...node.data, ...newData },
+          };
+        }
+        return node;
+      })
     );
   }, [setNodes]);
 
-  const onConnectStart = (_: React.MouseEvent, params: OnConnectStartParams) => {
+  const handleColorChangeWithChildren = React.useCallback((nodeId: string, color: string) => {
+    setNodes((nds) => {
+      // First, find all children of the current node
+      const findChildren = (parentId: string): string[] => {
+        const children: string[] = [];
+        const directChildren = edges
+          .filter(edge => edge.source === parentId)
+          .map(edge => edge.target);
+        
+        children.push(...directChildren);
+        
+        // Recursively find grandchildren
+        directChildren.forEach(childId => {
+          children.push(...findChildren(childId));
+        });
+        
+        return children;
+      };
+
+      const childrenIds = findChildren(nodeId);
+      const allAffectedIds = [nodeId, ...childrenIds];
+
+      return nds.map((node) => {
+        if (allAffectedIds.includes(node.id)) {
+          return {
+            ...node,
+            data: { ...node.data, backgroundColor: color },
+          };
+        }
+        return node;
+      });
+    });
+  }, [setNodes, edges]);
+
+  const handleNodeDelete = React.useCallback((nodeId: string) => {
+    // Remove the node
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    
+    // Remove all edges connected to this node
+    setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+  }, [setNodes, setEdges]);
+
+  const onConnectStart = (_event: React.MouseEvent | React.TouchEvent, params: OnConnectStartParams) => {
     setConnectingNodeId(params.nodeId);
   };
 
-  const onConnectEnd = (event: MouseEvent) => {
+  const onConnectEnd = (event: MouseEvent | TouchEvent) => {
     const reactFlowBounds = document
       .querySelector(".react-flow__viewport")
       ?.getBoundingClientRect();
@@ -152,19 +198,23 @@ const MindMap: React.FC = () => {
     if (!reactFlowBounds || !connectingNodeId) return;
 
     const position = {
-      x: event.clientX - reactFlowBounds.left,
-      y: event.clientY - reactFlowBounds.top,
+      x: (event as MouseEvent).clientX - reactFlowBounds.left,
+      y: (event as MouseEvent).clientY - reactFlowBounds.top,
     };
 
     const newNodeId = nanoid();
     const newNode: Node = {
       id: newNodeId,
-      data: { 
-        label: "New Node", 
-        description: "", 
-        startDate: "", 
+      data: {
+        label: "New Node",
+        description: "",
+        startDate: "",
         endDate: "",
+        backgroundColor: "#ffffff",
+        completed: false,
+        icon: "",
         onDataChange: handleNodeDataChange,
+        onColorChangeWithChildren: handleColorChangeWithChildren,
       },
       position,
       type: "editableNode",
@@ -176,22 +226,6 @@ const MindMap: React.FC = () => {
   };
 
   const onConnect = (params: Connection) => setEdges((eds) => addEdge(params, eds));
-
-  const onNodeDoubleClick: NodeMouseHandler = (_, node) => {
-    setSelectedNode(node);
-  };
-
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (!selectedNode) return;
-    const { name, value } = e.target;
-    setNodes((nds) =>
-      nds.map((n) =>
-        n.id === selectedNode.id ? { ...n, data: { ...n.data, [name]: value } } : n
-      )
-    );
-  };
-
-  const closeEditor = () => setSelectedNode(null);
 
   // Import/Export handlers
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -245,6 +279,8 @@ const MindMap: React.FC = () => {
           data: {
             ...node.data,
             onDataChange: handleNodeDataChange,
+            onColorChangeWithChildren: handleColorChangeWithChildren,
+            onDelete: handleNodeDelete,
           },
         }));
         setNodes(nodesWithCallback);
@@ -278,6 +314,8 @@ const MindMap: React.FC = () => {
       data: {
         ...node.data,
         onDataChange: handleNodeDataChange,
+        onColorChangeWithChildren: handleColorChangeWithChildren,
+        onDelete: handleNodeDelete,
       },
     }));
     setNodes(nodesWithCallback);
@@ -299,6 +337,8 @@ const MindMap: React.FC = () => {
         data: {
           ...node.data,
           onDataChange: handleNodeDataChange,
+          onColorChangeWithChildren: handleColorChangeWithChildren,
+          onDelete: handleNodeDelete,
         },
       }));
       setNodes(nodesWithCallback);
